@@ -1,0 +1,8 @@
+{
+  "name": "splendor-rule-engine",
+  "private": true,
+  "packageManager": "bun@1.3.9",
+  "workspaces": [
+    "packages/*"
+  ]
+}
