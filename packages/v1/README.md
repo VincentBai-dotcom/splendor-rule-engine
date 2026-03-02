@@ -1,83 +1,70 @@
 # v1
 
-`v1` is the first package in this repository's Codex evaluation flow for building a Splendor rule engine.
+`v1` is a Bun-based TypeScript Splendor rule engine with full turn flow, rule enforcement, card data, and tests inside this package.
 
-## Method
+## What it implements
 
-This version uses a minimal bootstrap strategy:
+- setup for 2 to 4 players
+- standard bank sizing by player count
+- development card decks, face-up market rows, and immediate refill
+- legal action generation for taking tokens, reserving, buying, token returns, and noble choice
+- gold jokers and permanent discounts from purchased cards
+- reserved-card limits and hidden deck reservations
+- noble support, including forced claim and player choice when multiple nobles qualify
+- end-game trigger at 15 prestige points and round-complete winner resolution
+- winner tiebreak by fewest purchased development cards
 
-- start from a basic Bun package scaffold
-- keep the setup lightweight so the package can serve as a clean baseline
-- use that baseline as the first Codex-generated version to iterate from
+## Public API
 
-In other words, `v1` captures the simplest starting point before introducing more opinionated prompts, workflows, or review loops in later versions.
+Main exports from [index.ts](/home/vincent-bai/Documents/github/splendor-rule-engine/packages/v1/index.ts):
 
-## What this package contains
+- `SplendorGame`
+- `createStandardGame`
+- domain classes such as `Player`, `Bank`, `DevelopmentCard`, `NobleTile`, and `CardMarket`
+- `STANDARD_DEVELOPMENT_CARD_DEFINITIONS`
+- `parseDevelopmentCardsCsv`
+- `NON_AUTHORITATIVE_TEST_NOBLES`
 
-- a Bun-based TypeScript package scaffold
-- the initial files Codex can build on for future Splendor rule-engine work
+Example:
 
-## How to use it
+```ts
+import { createStandardGame } from "v1";
 
-Install dependencies from the repo root:
+const game = createStandardGame({
+  players: ["Ada", "Grace"],
+  shuffle: false,
+});
+
+const legalActions = game.getLegalActions();
+const result = game.applyAction(legalActions[0]!);
+console.log(result.state.phase);
+```
+
+## Card data
+
+The development card catalog is embedded in-package as CSV text derived from `static-assets/Splendor Cards.csv`, then parsed by `parseDevelopmentCardsCsv()` into `STANDARD_DEVELOPMENT_CARD_DEFINITIONS`.
+
+This keeps the package self-contained while preserving the original CSV structure as the source format used by the engine.
+
+## Noble data
+
+The repository does not include an authoritative noble dataset, so the engine does not invent one.
+
+- Production callers should pass `nobleDefinitions` into `SplendorGame` or `createStandardGame`.
+- If no noble data is supplied, the game runs with zero nobles available.
+- `NON_AUTHORITATIVE_TEST_NOBLES` exists only for tests and examples and is explicitly non-authoritative.
+
+## Scripts
+
+From the repo root:
 
 ```bash
-bun install
+bun run --cwd packages/v1 start
+bun run --cwd packages/v1 test
 ```
 
-Run the package directly:
+## Assumptions
 
-```bash
-bun run packages/v1/index.ts
-```
-
-## Notes
-
-- This package is intentionally lightweight.
-- Later packages should document how their Codex strategy differs from `v1`.
-
-## Prompt
-
-Use the following prompt for the `v1` one-shot Codex run:
-
-```text
-Build an end-to-end rule engine for the board game Splendor in this package in one shot.
-
-Context:
-- This repository is a Codex evaluation sandbox.
-- You are working inside `packages/v1`.
-- The source materials live in the repo-level `static-assets/` directory.
-- Use `static-assets/base__en__splendor-rulebook.pdf` as the rule reference.
-- Use `static-assets/Splendor Cards.csv` as the source of development card data.
-
-Goals:
-- Implement a complete TypeScript rule engine for Splendor.
-- Model the full game flow end to end: setup, turns, legal actions, reservations, purchases, token collection, gold jokers, discounts from purchased cards, nobles, victory points, turn progression, and game end conditions.
-- Parse or otherwise load the card data from the CSV into the engine.
-- Keep the implementation self-contained inside this package unless there is a strong reason not to.
-
-Design requirements:
-- Use object-oriented design for the key abstractions.
-- Favor explicit domain models over loosely structured objects.
-- Create classes for the core game concepts such as game, player, bank, card, deck, reserved cards, purchased cards, and action resolution.
-- Keep rules enforcement inside the engine instead of pushing validation to callers.
-- Make the design easy to extend and test.
-
-Important data constraint:
-- Noble tile data is not present in `static-assets/`.
-- Do not invent a fake authoritative noble dataset and do not block on missing noble asset files.
-- Instead, create the abstraction and engine support for noble tiles cleanly, so noble data can be plugged in later.
-- If you need placeholder noble data for compilation or tests, isolate it clearly and mark it as non-authoritative.
-
-Implementation expectations:
-- Add the package structure, source files, and any supporting types needed for a usable engine.
-- Expose a clear public API for creating a game, applying actions, querying legal moves, and inspecting game state.
-- Include tests that cover the main rule flows and edge cases.
-- Add or update package scripts if needed so the package can be run and tested with Bun.
-- Document any assumptions or intentionally deferred details in this package README.
-
-Output quality bar:
-- Prefer correctness and maintainability over cleverness.
-- Do not build only a partial sketch; deliver a working engine skeleton with meaningful rule coverage.
-- Use the rulebook and card CSV as the grounding source for game behavior and card definitions.
-```
+- If multiple players remain tied after both prestige points and purchased-card tiebreakers, the engine returns multiple winner ids.
+- When fewer noble definitions are provided than `playerCount + 1`, the engine reveals all provided nobles instead of failing setup.
+- Callers interact through the engine API; rule validation is enforced internally and invalid actions throw errors.
